@@ -17,7 +17,8 @@ class Redis
         if (!$response = $this->show_from_cache($request, $response))
         {
             $response = $next($request, $old_response);
-            $this->save($request, $response);
+
+            $response = $this->save($request, $response);
         }
 
         return $response;
@@ -65,6 +66,32 @@ class Redis
         $n[1] = "<!-- END " . self::$boxname . " $id $ro -->";
 
         return $n;
+    }
+
+    private function save($request, $response)
+    {
+        $content = $response->getBody()->__toString();
+
+        if (self::$maxttl && $request->isGet() && !$request->isXhr() && $_SERVER['HTTP_X_API'] <> 'on')
+        {
+            $parts = $this->list_html_box_parts($content);
+            if (count($parts) && is_array($parts))
+            {
+                $this->save_parts($parts, $content);
+            }
+            $key        = $this->cache_key();
+            $compressed = gzcompress(json_encode(['html' => $content, 'time' => time()], JSON_UNESCAPED_UNICODE), 9);
+            $this->redis->setex($key, self::$maxttl, $compressed);
+        }
+
+        $content = $this->insert_parts($content, 0);
+        $content = $this->insert_parts($content, 1);
+
+        $body = new \Slim\Http\Body(fopen('php://temp', 'r+'));
+        $body->write($content);
+
+        return $response->withBody($body);
+
     }
 
     private function show_from_cache($request, $response)
@@ -128,23 +155,6 @@ class Redis
         return "www:parts:$id";
     }
 
-    private function save($request, $response)
-    {
-        if (self::$maxttl && $request->isGet() && !$request->isXhr() && $_SERVER['HTTP_X_API'] <> 'on')
-        {
-            $content = $response->getBody()->__toString();
-
-            $parts = $this->list_html_box_parts($content);
-            if (count($parts) && is_array($parts))
-            {
-                $this->save_parts($parts, $content);
-            }
-            $key        = $this->cache_key();
-            $compressed = gzcompress(json_encode(['html' => $content, 'time' => time()]), 9);
-            $this->redis->setex($key, self::$maxttl, $compressed);
-        }
-
-    }
 
     private function save_parts($parts, $content)
     {
@@ -158,7 +168,7 @@ class Redis
                     {
                         $p   = $this->get_part($id, $content);
                         $key = $this->cache_part_key($id);
-                        $this->redis->set($key, $p);
+                        $this->redis->set($key, gzcompress($p, 9));
                     }
                 }
             }
@@ -210,7 +220,7 @@ class Redis
                     if ($part = $this->redis->get($key))
                     {
                         $n    = $this->box_markers($id, $mode);
-                        $html = $this->replace_between($html, $n[0], $n[1], $part);
+                        $html = $this->replace_between($html, $n[0], $n[1], gzuncompress($part));
                     }
                 }
             }
