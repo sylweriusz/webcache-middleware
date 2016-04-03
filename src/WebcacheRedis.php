@@ -1,14 +1,15 @@
 <?php
 
-namespace Middleware\Webcache;
+namespace Slim\Middleware;
 
 
-class Redis
+
+class WebcacheRedis
 {
 
     private $redis = false;
     private $connected = false;
-    private static $boxname = 'BOX';
+    private static $boxname = '';
     private static $maxttl = 86400;
     private static $minttl = 60;
 
@@ -25,8 +26,9 @@ class Redis
         return $response;
     }
 
-    public function __construct($server = 'tcp://127.0.0.1:6379')
+    public function __construct($server = 'tcp://127.0.0.1:6379', $boxname = "BOX")
     {
+        self::$boxname = $boxname;
         $this->redis = new \Predis\Client($server);
         try
         {

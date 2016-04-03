@@ -24,7 +24,7 @@
   },
   "autoload": {
     "psr-4": {
-      "Middleware\\Webcache\\": "src/"
+      "Slim\\Middleware\\": "src/"
     }
   }
 }
