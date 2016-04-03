@@ -1,0 +1,30 @@
+{
+  "name": "sylweriusz/webcache-middleware",
+  "description": "Static aka Html pages cache for Slim3 middleware stack",
+  "keywords": [
+    "slim",
+    "middleware",
+    "cache",
+    "webcache",
+    "redis"
+  ],
+  "authors": [
+    {
+      "name": "Sylweriusz Szydlik",
+      "email": "sylweriusz@gmail.com",
+      "homepage": "http://sylweriusz.szydlik.com",
+      "role": "Developer"
+    }
+  ],
+  "license": "GPL-3.0",
+  "minimum-stability": "stable",
+  "require": {
+    "php": ">=5.5.0",
+    "predis/predis": "^1.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Middleware\\Webcache\\": "src/"
+    }
+  }
+}
