@@ -10,6 +10,7 @@ class Redis
     private $connected = false;
     private static $boxname = 'BOX';
     private static $maxttl = 86400;
+    private static $minttl = 60;
 
     public function __invoke($request, $response, $next)
     {
@@ -55,9 +56,10 @@ class Redis
         }
     }
 
-    public static function set_ttl($ttl)
+    public static function set_ttl($ttl, $minttl = 60)
     {
         self::$maxttl = $ttl;
+        self::$minttl = $minttl;
     }
 
     public static function box_markers($id, $ro = 0)
@@ -109,10 +111,10 @@ class Redis
                         $data = json_decode(gzuncompress($body), true);
                         $html = $data['html'];
 
-                        header("Cache-Control: public, max-age=" . 60);
-                        header("Expires: " . gmdate("D, d M Y H:i:s", time() + 60) . " GMT");
+                        header("Cache-Control: public, max-age=" . self::$minttl);
+                        header("Expires: " . gmdate("D, d M Y H:i:s", time() + self::$minttl) . " GMT");
                         header("Last-Modified: " . gmdate("D, d M Y H:i:s", $data['time']) . " GMT");
-                        header("Pragma: public, max-age=" . 60);
+                        header("Pragma: public, max-age=" . self::$minttl);
 
                         $html = $this->insert_parts($html, 0);
                         $html = $this->insert_parts($html, 1);
