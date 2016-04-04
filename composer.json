@@ -20,7 +20,8 @@
   "minimum-stability": "stable",
   "require": {
     "php": ">=5.5.0",
-    "predis/predis": "^1.0"
+    "predis/predis": "^1.0",
+    "guzzlehttp/psr7": "^1.2"
   },
   "autoload": {
     "psr-4": {

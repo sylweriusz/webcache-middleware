@@ -75,26 +75,35 @@ class WebcacheRedis
     {
         $content = $response->getBody()->__toString();
 
-        if (self::$maxttl && $request->isGet() && !$request->isXhr() && $_SERVER['HTTP_X_API'] <> 'on')
+        if (self::$maxttl //set $maxttl to 0 if You need disable cache for this request
+            && $response->getStatusCode() == 200 //dont save error pages
+            && $request->isGet() //dont save anything other then get requests
+            && !$request->isXhr() //dont save ajax requests
+            && $_SERVER['HTTP_X_API'] <> 'on' //example for other excludes
+        )
         {
             $parts = $this->list_html_box_parts($content);
             if (count($parts) && is_array($parts))
             {
                 $this->save_parts($parts, $content);
             }
-            $key        = $this->cache_key();
-            $compressed = gzcompress(json_encode(['html' => $content, 'time' => time()], JSON_UNESCAPED_UNICODE), 9);
+            $key        = $this->cache_key($request);
+            $compressed = gzcompress(json_encode([
+                'page' => $this->url_string($request),
+                'time' => time(),
+                'html' => $content
+            ]), 9);
             $this->redis->setex($key, self::$maxttl, $compressed);
         }
 
         $content = $this->insert_parts($content, 0);
         $content = $this->insert_parts($content, 1);
 
-        $body = new \Slim\Http\Body(fopen('php://temp', 'r+'));
-        $body->write($content);
+        $newStream = new \GuzzleHttp\Psr7\LazyOpenStream('php://temp', 'r+');
+        $response  = $response->withBody($newStream);
+        $response->getBody()->write($content);
 
-        return $response->withBody($body);
-
+        return $response;
     }
 
     private function show_from_cache($request, $response)
@@ -104,16 +113,15 @@ class WebcacheRedis
             if ($request->isGet() && !$request->isXhr() && $_SERVER['HTTP_X_API'] <> 'on')
             {
                 //ctrl+F5 always refreshes cache
-                if ($_SERVER['HTTP_CACHE_CONTROL'] <> 'max-age=0')
+                if ($request->getHeaderLine('HTTP_CACHE_CONTROL') <> 'max-age=0')
                 {
-                    $key = $this->cache_key();
+                    $key = $this->cache_key($request);
                     if ($body = $this->redis->get($key))
                     {
                         $data = json_decode(gzuncompress($body), true);
                         $html = $data['html'];
 
                         header("Last-Modified: " . gmdate("D, d M Y H:i:s", $data['time']) . " GMT");
-
                         if (self::$minttl)
                         {
                             header("Cache-Control: public, max-age=" . self::$minttl);
@@ -135,9 +143,9 @@ class WebcacheRedis
         return false;
     }
 
-    private function cache_key()
+    private function cache_key($request)
     {
-        $url = $_SERVER['HTTPS'] . '//' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '?' . $_SERVER["QUERY_STRING"];
+        $url = $this->url_string($request);
 
         $parts = explode('/', $url);
         $id    = 0;
@@ -155,6 +163,12 @@ class WebcacheRedis
         $key = "www:" . $id . ":" . rtrim(strtr(base64_encode(hash('sha256', $url, true)), '+/', '-_'), '=');
 
         return $key;
+    }
+
+    private function url_string($request)
+    {
+        $uri = $request->getUri();
+        return $uri->getScheme() . '://' . $uri->getHost() . ':' . $uri->getPort() . $uri->getPath() . '?' . $uri->getQuery();
     }
 
     private function cache_part_key($id)
