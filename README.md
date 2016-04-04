@@ -35,7 +35,7 @@ Disabling cache inside application route
 \Slim\Middleware\WebcacheRedis::setTtl(0);
 ```
 
-Change TTL (in seconds) inside application route 
+Change default TTL (in seconds) inside application route 
 ```php
 \Slim\Middleware\WebcacheRedis::setTtl(600);
 ```
