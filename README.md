@@ -43,8 +43,8 @@ and if it fail to detect it will assume ID = 0
 
 if You want to delete all articles with this ID You should do something like this
 ```php
-        $webcache = new \Slim\Middleware\WebcacheRedis('tcp://192.168.1.12:6379/?database=2');
-        $webcache->delete(123456);
+$webcache = new \Slim\Middleware\WebcacheRedis('tcp://192.168.1.12:6379/?database=2');
+$webcache->delete(123456);
 ```
 
 
