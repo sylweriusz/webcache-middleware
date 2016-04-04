@@ -15,7 +15,7 @@ class WebcacheRedis
     public function __invoke($request, $response, $next)
     {
         $oldResponse = $response;
-        if (!$response = $this->show_from_cache($request, $response))
+        if (!$response = $this->getPageFromCache($request, $response))
         {
             $response = $next($request, $oldResponse);
 
@@ -56,13 +56,13 @@ class WebcacheRedis
         }
     }
 
-    public static function set_ttl($ttl, $minttl = 60)
+    public static function setTtl($ttl, $minttl = 60)
     {
         self::$maxttl = $ttl;
         self::$minttl = $minttl;
     }
 
-    public static function box_markers($id, $ro = 0)
+    public static function boxMarkers($id, $ro = 0)
     {
         $n[0] = "<!-- BEGIN " . self::$boxname . " $id $ro -->";
         $n[1] = "<!-- END " . self::$boxname . " $id $ro -->";
@@ -81,12 +81,12 @@ class WebcacheRedis
             && $_SERVER['HTTP_X_API'] <> 'on' //example for other excludes
         )
         {
-            $parts = $this->list_html_box_parts($content);
+            $parts = $this->boxParts($content);
             if (count($parts) && is_array($parts))
             {
-                $this->save_parts($parts, $content);
+                $this->saveParts($parts, $content);
             }
-            $key        = $this->cache_key($request);
+            $key        = $this->cacheKey($request);
             $compressed = gzcompress(json_encode([
                 'page' => $this->urlString($request),
                 'time' => time(),
@@ -95,8 +95,8 @@ class WebcacheRedis
             $this->redis->setex($key, self::$maxttl, $compressed);
         }
 
-        $content = $this->insert_parts($content, 0);
-        $content = $this->insert_parts($content, 1);
+        $content = $this->insertParts($content, 0);
+        $content = $this->insertParts($content, 1);
 
         $newStream = new \GuzzleHttp\Psr7\LazyOpenStream('php://temp', 'r+');
         $response  = $response->withBody($newStream);
@@ -105,7 +105,7 @@ class WebcacheRedis
         return $response;
     }
 
-    private function show_from_cache($request, $response)
+    private function getPageFromCache($request, $response)
     {
         if ($this->connected)
         {
@@ -114,7 +114,7 @@ class WebcacheRedis
                 //ctrl+F5 always refreshes cache
                 if ($request->getHeaderLine('HTTP_CACHE_CONTROL') <> 'max-age=0')
                 {
-                    $key = $this->cache_key($request);
+                    $key = $this->cacheKey($request);
                     if ($body = $this->redis->get($key))
                     {
                         $data = json_decode(gzuncompress($body), true);
@@ -128,8 +128,8 @@ class WebcacheRedis
                             header("Pragma: public, max-age=" . self::$minttl);
                         }
 
-                        $html = $this->insert_parts($html, 0);
-                        $html = $this->insert_parts($html, 1);
+                        $html = $this->insertParts($html, 0);
+                        $html = $this->insertParts($html, 1);
 
                         $response->getBody()->write($html);
 
@@ -142,7 +142,7 @@ class WebcacheRedis
         return false;
     }
 
-    private function cache_key($request)
+    private function cacheKey($request)
     {
         $url = $this->urlString($request);
 
@@ -175,7 +175,7 @@ class WebcacheRedis
         return "www:parts:$id";
     }
 
-    private function save_parts($parts, $content)
+    private function saveParts($parts, $content)
     {
         if (is_array($parts) && count($parts))
         {
@@ -185,7 +185,7 @@ class WebcacheRedis
                 {
                     if ($mode == 0)
                     {
-                        $p   = $this->get_part($id, $content);
+                        $p   = $this->getPart($id, $content);
                         $key = $this->cache_part_key($id);
                         $this->redis->set($key, gzcompress($p, 9));
                     }
@@ -195,14 +195,14 @@ class WebcacheRedis
 
     }
 
-    private function get_part($id, $content, $mode = 0)
+    private function getPart($id, $content, $mode = 0)
     {
-        $n = $this->box_markers($id, $mode);
+        $n = $this->boxMarkers($id, $mode);
 
-        return $this->get_between($content, $n[0], $n[1]);
+        return $this->getBetween($content, $n[0], $n[1]);
     }
 
-    private function replace_between($str, $stringStart, $stringEnd, $replacement)
+    private function replaceBetween($str, $stringStart, $stringEnd, $replacement)
     {
         $pos   = strpos($str, $stringStart);
         $start = $pos === false ? 0 : $pos + strlen($stringStart);
@@ -213,7 +213,7 @@ class WebcacheRedis
         return substr_replace($str, $replacement, $start, $end - $start);
     }
 
-    private function get_between($str, $stringStart, $stringEnd)
+    private function getBetween($str, $stringStart, $stringEnd)
     {
         $pos   = strpos($str, $stringStart);
         $start = $pos === false ? 0 : $pos + strlen($stringStart);
@@ -224,9 +224,9 @@ class WebcacheRedis
         return substr($str, $start, $end - $start);
     }
 
-    private function insert_parts($html, $onlyReadOnly = 0)
+    private function insertParts($html, $onlyReadOnly = 0)
     {
-        $partsList = $this->list_html_box_parts($html, $onlyReadOnly);
+        $partsList = $this->boxParts($html, $onlyReadOnly);
 
         if (count($partsList) && is_array($partsList))
         {
@@ -237,8 +237,8 @@ class WebcacheRedis
                     $key = $this->cache_part_key($id);
                     if ($part = $this->redis->get($key))
                     {
-                        $n    = $this->box_markers($id, $mode);
-                        $html = $this->replace_between($html, $n[0], $n[1], gzuncompress($part));
+                        $n    = $this->boxMarkers($id, $mode);
+                        $html = $this->replaceBetween($html, $n[0], $n[1], gzuncompress($part));
                     }
                 }
             }
@@ -247,7 +247,7 @@ class WebcacheRedis
         return $html;
     }
 
-    private function list_html_box_parts($content = '', $onlyReadOnly = 0)
+    private function boxParts($content = '', $onlyReadOnly = 0)
     {
         $cache_ids = [];
         preg_match_all('/<!-- BEGIN ' . self::$boxname . '(.|\s)*?-->/', $content, $list, PREG_SET_ORDER);
