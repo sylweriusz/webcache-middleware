@@ -47,6 +47,15 @@ $webcache = new \Slim\Middleware\WebcacheRedis('tcp://192.168.1.12:6379/?databas
 $webcache->delete(123456);
 ```
 
+Disabling cache inside application route 
+```php
+\Slim\Middleware\WebcacheRedis::setTtl(0);
+```
+
+Change TTL (in seconds) inside application route 
+```php
+\Slim\Middleware\WebcacheRedis::setTtl(600);
+```
 
 
 
