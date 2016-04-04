@@ -39,11 +39,11 @@ class WebcacheRedis
         }
     }
 
-    public function delete($id)
+    public function delete($artId)
     {
         if ($this->connected)
         {
-            $cacheKey = 'www:' . $id . ':*';
+            $cacheKey = 'www:' . $artId . ':*';
             $keys   = $this->redis->keys($cacheKey);
             if (is_array($keys) && count($keys))
             {
@@ -62,10 +62,10 @@ class WebcacheRedis
         self::$minttl = $minttl;
     }
 
-    public static function boxMarkers($id, $ro = 0)
+    public static function boxMarkers($boxId, $readOnly = 0)
     {
-        $n[0] = "<!-- BEGIN " . self::$boxname . " $id $ro -->";
-        $n[1] = "<!-- END " . self::$boxname . " $id $ro -->";
+        $n[0] = "<!-- BEGIN " . self::$boxname . " $boxId $readOnly -->";
+        $n[1] = "<!-- END " . self::$boxname . " $boxId $readOnly -->";
 
         return $n;
     }
@@ -146,19 +146,19 @@ class WebcacheRedis
         $url = $this->urlString($request);
 
         $parts = explode('/', $url);
-        $id    = 0;
+        $artId    = 0;
         if (is_array($parts) && count($parts))
         {
             foreach ($parts as $part)
             {
                 if (is_numeric($part) and $part > 0)
                 {
-                    $id = $part;
+                    $artId = $part;
                     break;
                 }
             }
         }
-        $key = "www:" . $id . ":" . rtrim(strtr(base64_encode(hash('sha256', $url, true)), '+/', '-_'), '=');
+        $key = "www:" . $artId . ":" . rtrim(strtr(base64_encode(hash('sha256', $url, true)), '+/', '-_'), '=');
 
         return $key;
     }
@@ -169,9 +169,9 @@ class WebcacheRedis
         return $uri->getScheme() . '://' . $uri->getHost() . ':' . $uri->getPort() . $uri->getPath() . '?' . $uri->getQuery();
     }
 
-    private function cache_part_key($id)
+    private function cache_part_key($partId)
     {
-        return "www:parts:$id";
+        return "www:parts:$partId";
     }
 
     private function saveParts($parts, $content)
@@ -180,12 +180,12 @@ class WebcacheRedis
         {
             foreach ($parts as $p)
             {
-                foreach ($p as $id => $mode)
+                foreach ($p as $partId => $mode)
                 {
                     if ($mode == 0)
                     {
-                        $p   = $this->getPart($id, $content);
-                        $key = $this->cache_part_key($id);
+                        $p   = $this->getPart($partId, $content);
+                        $key = $this->cache_part_key($partId);
                         $this->redis->set($key, gzcompress($p, 9));
                     }
                 }
@@ -194,9 +194,9 @@ class WebcacheRedis
 
     }
 
-    private function getPart($id, $content, $mode = 0)
+    private function getPart($partId, $content, $mode = 0)
     {
-        $n = $this->boxMarkers($id, $mode);
+        $n = $this->boxMarkers($partId, $mode);
 
         return $this->getBetween($content, $n[0], $n[1]);
     }
@@ -231,12 +231,12 @@ class WebcacheRedis
         {
             foreach ($partsList as $p)
             {
-                foreach ($p as $id => $mode)
+                foreach ($p as $idKey => $mode)
                 {
-                    $key = $this->cache_part_key($id);
+                    $key = $this->cache_part_key($idKey);
                     if ($part = $this->redis->get($key))
                     {
-                        $n    = $this->boxMarkers($id, $mode);
+                        $n    = $this->boxMarkers($idKey, $mode);
                         $html = $this->replaceBetween($html, $n[0], $n[1], gzuncompress($part));
                     }
                 }
@@ -248,7 +248,7 @@ class WebcacheRedis
 
     private function boxParts($content = '', $onlyReadOnly = 0)
     {
-        $cache_ids = [];
+        $cacheIds = [];
         preg_match_all('/<!-- BEGIN ' . self::$boxname . '(.|\s)*?-->/', $content, $list, PREG_SET_ORDER);
 
 
@@ -259,11 +259,11 @@ class WebcacheRedis
                 $parts = explode(" ", $item[0]);
                 if (!$onlyReadOnly || trim($parts[4]) == '1')
                 {
-                    $cache_ids[] = [trim($parts[3]) => trim($parts[4])];
+                    $cacheIds[] = [trim($parts[3]) => trim($parts[4])];
                 }
             }
         }
 
-        return $cache_ids;
+        return $cacheIds;
     }
 }
