@@ -41,7 +41,6 @@ class WebcacheRedis
 
     public function delete($id)
     {
-
         if ($this->connected)
         {
             $key_ar = 'www:' . $id . ':*';
