@@ -175,7 +175,6 @@ class WebcacheRedis
         return "www:parts:$id";
     }
 
-
     private function save_parts($parts, $content)
     {
         if (is_array($parts) && count($parts))
@@ -202,7 +201,6 @@ class WebcacheRedis
 
         return $this->get_between($content, $n[0], $n[1]);
     }
-
 
     private function replace_between($str, $needle_start, $needle_end, $replacement)
     {
@@ -248,7 +246,6 @@ class WebcacheRedis
 
         return $html;
     }
-
 
     private function list_html_box_parts($content = '', $only_ro = 0)
     {
