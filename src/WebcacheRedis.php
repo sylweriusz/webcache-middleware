@@ -78,7 +78,6 @@ class WebcacheRedis
             && $response->getStatusCode() == 200 //dont save error pages
             && $request->isGet() //dont save anything other then get requests
             && !$request->isXhr() //dont save ajax requests
-            && $_SERVER['HTTP_X_API'] <> 'on' //example for other excludes
         )
         {
             $parts = $this->boxParts($content);
@@ -109,7 +108,7 @@ class WebcacheRedis
     {
         if ($this->connected)
         {
-            if ($request->isGet() && !$request->isXhr() && $_SERVER['HTTP_X_API'] <> 'on')
+            if ($request->isGet() && !$request->isXhr())
             {
                 //ctrl+F5 always refreshes cache
                 if ($request->getHeaderLine('HTTP_CACHE_CONTROL') <> 'max-age=0')
