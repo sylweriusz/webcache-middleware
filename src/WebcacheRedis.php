@@ -14,10 +14,10 @@ class WebcacheRedis
 
     public function __invoke($request, $response, $next)
     {
-        $old_response = $response;
+        $oldResponse = $response;
         if (!$response = $this->show_from_cache($request, $response))
         {
-            $response = $next($request, $old_response);
+            $response = $next($request, $oldResponse);
 
             $response = $this->save($request, $response);
         }
@@ -43,8 +43,8 @@ class WebcacheRedis
     {
         if ($this->connected)
         {
-            $key_ar = 'www:' . $id . ':*';
-            $keys   = $this->redis->keys($key_ar);
+            $cacheKey = 'www:' . $id . ':*';
+            $keys   = $this->redis->keys($cacheKey);
             if (is_array($keys) && count($keys))
             {
                 foreach ($keys as $key)
@@ -88,7 +88,7 @@ class WebcacheRedis
             }
             $key        = $this->cache_key($request);
             $compressed = gzcompress(json_encode([
-                'page' => $this->url_string($request),
+                'page' => $this->urlString($request),
                 'time' => time(),
                 'html' => $content
             ]), 9);
@@ -144,7 +144,7 @@ class WebcacheRedis
 
     private function cache_key($request)
     {
-        $url = $this->url_string($request);
+        $url = $this->urlString($request);
 
         $parts = explode('/', $url);
         $id    = 0;
@@ -164,7 +164,7 @@ class WebcacheRedis
         return $key;
     }
 
-    private function url_string($request)
+    private function urlString($request)
     {
         $uri = $request->getUri();
         return $uri->getScheme() . '://' . $uri->getHost() . ':' . $uri->getPort() . $uri->getPath() . '?' . $uri->getQuery();
@@ -174,7 +174,6 @@ class WebcacheRedis
     {
         return "www:parts:$id";
     }
-
 
     private function save_parts($parts, $content)
     {
@@ -203,36 +202,35 @@ class WebcacheRedis
         return $this->get_between($content, $n[0], $n[1]);
     }
 
-
-    private function replace_between($str, $needle_start, $needle_end, $replacement)
+    private function replace_between($str, $stringStart, $stringEnd, $replacement)
     {
-        $pos   = strpos($str, $needle_start);
-        $start = $pos === false ? 0 : $pos + strlen($needle_start);
+        $pos   = strpos($str, $stringStart);
+        $start = $pos === false ? 0 : $pos + strlen($stringStart);
 
-        $pos = strpos($str, $needle_end, $start);
+        $pos = strpos($str, $stringEnd, $start);
         $end = $pos === false ? strlen($str) : $pos;
 
         return substr_replace($str, $replacement, $start, $end - $start);
     }
 
-    private function get_between($str, $needle_start, $needle_end)
+    private function get_between($str, $stringStart, $stringEnd)
     {
-        $pos   = strpos($str, $needle_start);
-        $start = $pos === false ? 0 : $pos + strlen($needle_start);
+        $pos   = strpos($str, $stringStart);
+        $start = $pos === false ? 0 : $pos + strlen($stringStart);
 
-        $pos = strpos($str, $needle_end, $start);
+        $pos = strpos($str, $stringEnd, $start);
         $end = $pos === false ? strlen($str) : $pos;
 
         return substr($str, $start, $end - $start);
     }
 
-    private function insert_parts($html, $only_ro = 0)
+    private function insert_parts($html, $onlyReadOnly = 0)
     {
-        $parts_list = $this->list_html_box_parts($html, $only_ro);
+        $partsList = $this->list_html_box_parts($html, $onlyReadOnly);
 
-        if (count($parts_list) && is_array($parts_list))
+        if (count($partsList) && is_array($partsList))
         {
-            foreach ($parts_list as $p)
+            foreach ($partsList as $p)
             {
                 foreach ($p as $id => $mode)
                 {
@@ -249,10 +247,9 @@ class WebcacheRedis
         return $html;
     }
 
-
-    private function list_html_box_parts($content = '', $only_ro = 0)
+    private function list_html_box_parts($content = '', $onlyReadOnly = 0)
     {
-        $ids = [];
+        $cache_ids = [];
         preg_match_all('/<!-- BEGIN ' . self::$boxname . '(.|\s)*?-->/', $content, $list, PREG_SET_ORDER);
 
 
@@ -261,13 +258,13 @@ class WebcacheRedis
             foreach ($list as $item)
             {
                 $parts = explode(" ", $item[0]);
-                if (!$only_ro || trim($parts[4]) == '1')
+                if (!$onlyReadOnly || trim($parts[4]) == '1')
                 {
-                    $ids[] = [trim($parts[3]) => trim($parts[4])];
+                    $cache_ids[] = [trim($parts[3]) => trim($parts[4])];
                 }
             }
         }
 
-        return $ids;
+        return $cache_ids;
     }
 }
