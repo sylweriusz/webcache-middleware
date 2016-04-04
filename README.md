@@ -35,6 +35,18 @@ You can even declare them empty (as readonly) on another page and hope it will j
 
 Cache will try to detect ID of document, first numerical value in url parts. 
 
+Example: http://example.org/article/123456/title.html
+after detection ID = 123456
+
+and if it fail to detect it will assume ID = 0
+
+
+if You want to delete all articles with this ID You should do something like this
+```php
+        $webcache = new \Slim\Middleware\WebcacheRedis('tcp://192.168.1.12:6379/?database=2');
+        $webcache->delete(123456);
+```
+
 
 
 
