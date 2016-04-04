@@ -3,7 +3,6 @@
 namespace Slim\Middleware;
 
 
-
 class WebcacheRedis
 {
 
@@ -29,9 +28,9 @@ class WebcacheRedis
     public function __construct($server = 'tcp://127.0.0.1:6379', $boxname = "BOX")
     {
         self::$boxname = $boxname;
-        $this->redis = new \Predis\Client($server);
         try
         {
+            $this->redis = new \Predis\Client($server);
             $this->redis->ping();
             $this->connected = true;
         } catch (Exception $e)
