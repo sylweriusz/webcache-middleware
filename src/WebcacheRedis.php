@@ -112,10 +112,14 @@ class WebcacheRedis
                         $data = json_decode(gzuncompress($body), true);
                         $html = $data['html'];
 
-                        header("Cache-Control: public, max-age=" . self::$minttl);
-                        header("Expires: " . gmdate("D, d M Y H:i:s", time() + self::$minttl) . " GMT");
                         header("Last-Modified: " . gmdate("D, d M Y H:i:s", $data['time']) . " GMT");
-                        header("Pragma: public, max-age=" . self::$minttl);
+
+                        if (self::$minttl)
+                        {
+                            header("Cache-Control: public, max-age=" . self::$minttl);
+                            header("Expires: " . gmdate("D, d M Y H:i:s", time() + self::$minttl) . " GMT");
+                            header("Pragma: public, max-age=" . self::$minttl);
+                        }
 
                         $html = $this->insert_parts($html, 0);
                         $html = $this->insert_parts($html, 1);
