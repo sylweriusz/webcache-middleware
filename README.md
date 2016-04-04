@@ -16,23 +16,6 @@ Declare middleware
 $app->add(new \Slim\Middleware\WebcacheRedis('tcp://192.168.1.12:6379/?database=2'));
 ```
 
-Define parts of html that should be always fresh, no mather what. 
-```smarty
-<body>
-<div class="right-content">
-{fresh id="reusable_box"}some html content{/fresh}
-</div>
-```
-
-
-You can even declare them empty (as readonly) on another page and hope it will just work.
-```smarty
-<body>
-<div class="right-content">
-{fresh id="reusable_box" readonly=1}{/fresh}
-</div>
-```
-
 Cache will try to detect ID of document, first numerical value in url parts. 
 
 Example: http://example.org/article/123456/title.html
@@ -47,6 +30,30 @@ $webcache = new \Slim\Middleware\WebcacheRedis('tcp://192.168.1.12:6379/?databas
 $webcache->delete(123456);
 ```
 
+Disabling cache inside application route 
+```php
+\Slim\Middleware\WebcacheRedis::setTtl(0);
+```
 
+Change default TTL (in seconds) inside application route 
+```php
+\Slim\Middleware\WebcacheRedis::setTtl(600);
+```
 
+## Smarty plugin
 
+Define parts of html that should be always fresh, no mather what. 
+```smarty
+<body>
+<div class="right-content">
+{fresh id="reusable_box"}some html content{/fresh}
+</div>
+```
+
+You can even declare them empty (as readonly) on another page and hope it will just work.
+```smarty
+<body>
+<div class="right-content">
+{fresh id="reusable_box" readonly=1}{/fresh}
+</div>
+```
