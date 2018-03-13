@@ -6,11 +6,14 @@ namespace Slim\Middleware;
 class WebcacheRedis
 {
 
-    private $redis = false;
-    private $connected = false;
-    private static $boxname = '';
-    private static $maxttl = 86400;
-    private static $minttl = 60;
+    public $redis = false;
+    public $connected = false;
+    public static $boxname = '';
+    public static $maxttl = 3600;
+    public static $minttl = 60;
+    public $cluster = false;
+    public $tryonce = false;
+    public $artid = false;
 
     public function __invoke($request, $response, $next)
     {
@@ -25,17 +28,50 @@ class WebcacheRedis
         return $response;
     }
 
-    public function __construct($server = 'tcp://127.0.0.1:6379', $boxname = "BOX")
+    public function __construct($server = 'tcp://127.0.0.1:6379', $boxname = "BOX", $slimContainer = false)
     {
         self::$boxname = $boxname;
         try
         {
+            if (is_array($server))
+            {
+                $this->cluster = true;
+            }
             $this->redis = new \Predis\Client($server);
-            $this->redis->ping();
             $this->connected = true;
-        } catch (Exception $e)
+        } catch (\Predis\CommunicationException $e)
         {
             $this->connected = false;
+        }
+
+        if ($slimContainer)
+        {
+            if ($response = $this->getPageFromCache($slimContainer->request, $slimContainer->response))
+            {
+                echo $response->getBody()->__toString();
+                exit;
+            }
+        }
+
+    }
+
+    public function delete_all()
+    {
+        if ($this->connected)
+        {
+
+            if ($this->cluster)
+            {
+                $cmd = $this->redis->createCommand('flushdb');
+                foreach ($this->redis->getConnection() as $nodeConnection)
+                {
+                    $nodeConnection->executeCommand($cmd);
+                }
+            }
+            else
+            {
+                $this->redis->flushdb();
+            }
         }
     }
 
@@ -43,22 +79,39 @@ class WebcacheRedis
     {
         if ($this->connected)
         {
-            $cacheKey = 'www:' . $artId . ':*';
-            $keys   = $this->redis->keys($cacheKey);
-            if (is_array($keys) && count($keys))
+
+            if ($this->cluster)
             {
-                foreach ($keys as $key)
+                $cmdKeys = $this->redis->createCommand('keys', ['www:' . $artId . ':*']);
+                foreach ($this->redis->getConnection() as $nodeConnection)
                 {
-                    //expire after 10 seconds
-                    $this->redis->expire($key, 10);
+                    $keys = $nodeConnection->executeCommand($cmdKeys);
+                    foreach ($keys as $key)
+                    {
+                        //expire after 10 seconds
+                        $this->redis->expire($key, 10);
+                    }
+                }
+            }
+            else
+            {
+                $cacheKey = 'www:' . $artId . ':*';
+                $keys = $this->redis->keys($cacheKey);
+                if (is_array($keys) && count($keys))
+                {
+                    foreach ($keys as $key)
+                    {
+                        //expire after 10 seconds
+                        $this->redis->expire($key, 10);
+                    }
                 }
             }
         }
     }
 
-    public static function setTtl($ttl, $minttl = 60)
+    public static function setTtl($maxttl, $minttl = 60)
     {
-        self::$maxttl = $ttl;
+        self::$maxttl = $maxttl;
         self::$minttl = $minttl;
     }
 
@@ -74,7 +127,7 @@ class WebcacheRedis
     {
         $content = $response->getBody()->__toString();
 
-        if (self::$maxttl //set $maxttl to 0 if You need disable cache for this request
+        if (self::$maxttl > 0 //set $maxttl to 0 if You need disable cache for this request
             && $response->getStatusCode() == 200 //dont save error pages
             && $request->isGet() //dont save anything other then get requests
             && !$request->isXhr() //dont save ajax requests
@@ -85,20 +138,30 @@ class WebcacheRedis
             {
                 $this->saveParts($parts, $content);
             }
-            $key        = $this->cacheKey($request);
+            $key = $this->cacheKey($request);
             $compressed = gzcompress(json_encode([
                 'page' => $this->urlString($request),
                 'time' => time(),
-                'html' => $content
+                'html' => $content,
             ]), 9);
-            $this->redis->setex($key, self::$maxttl, $compressed);
+
+            if ($this->artid == 0 && self::$maxttl > 600)
+            {
+                $ttl = 120;
+            }
+            else
+            {
+                $ttl = self::$maxttl;
+            }
+
+            $this->redis->setex($key, $ttl, $compressed);
         }
 
         $content = $this->insertParts($content, 0);
         $content = $this->insertParts($content, 1);
 
         $newStream = new \GuzzleHttp\Psr7\LazyOpenStream('php://temp', 'r+');
-        $response  = $response->withBody($newStream);
+        $response = $response->withBody($newStream);
         $response->getBody()->write($content);
 
         return $response;
@@ -106,33 +169,31 @@ class WebcacheRedis
 
     private function getPageFromCache($request, $response)
     {
-        if ($this->connected)
+        if (!$this->tryonce)
         {
-            if ($request->isGet() && !$request->isXhr())
+            if ($this->connected)
             {
-                //ctrl+F5 always refreshes cache
-                if ($request->getHeaderLine('HTTP_CACHE_CONTROL') <> 'max-age=0')
+                $this->tryonce = true;
+                if ($request->isGet() && !$request->isXhr())
                 {
-                    $key = $this->cacheKey($request);
-                    if ($body = $this->redis->get($key))
+                    //ctrl+F5 always refreshes cache
+                    if ($request->getHeaderLine('HTTP_CACHE_CONTROL') <> 'max-age=0')
                     {
-                        $data = json_decode(gzuncompress($body), true);
-                        $html = $data['html'];
-
-                        header("Last-Modified: " . gmdate("D, d M Y H:i:s", $data['time']) . " GMT");
-                        if (self::$minttl)
+                        $key = $this->cacheKey($request);
+                        if ($body = $this->redis->get($key))
                         {
-                            header("Cache-Control: public, max-age=" . self::$minttl);
-                            header("Expires: " . gmdate("D, d M Y H:i:s", time() + self::$minttl) . " GMT");
-                            header("Pragma: public, max-age=" . self::$minttl);
+                            $data = json_decode(gzuncompress($body), true);
+                            $html = $data['html'];
+
+                            header("X-From-Cache: " . gmdate("D, d M Y H:i:s", $data['time']) . " GMT");
+
+                            $html = $this->insertParts($html, 0);
+                            $html = $this->insertParts($html, 1);
+
+                            $response->getBody()->write($html);
+
+                            return $response;
                         }
-
-                        $html = $this->insertParts($html, 0);
-                        $html = $this->insertParts($html, 1);
-
-                        $response->getBody()->write($html);
-
-                        return $response;
                     }
                 }
             }
@@ -146,19 +207,20 @@ class WebcacheRedis
         $url = $this->urlString($request);
 
         $parts = explode('/', $url);
-        $artId    = 0;
+        $this->artid = 0;
         if (is_array($parts) && count($parts))
         {
             foreach ($parts as $part)
             {
                 if (is_numeric($part) and $part > 0)
                 {
-                    $artId = $part;
+                    $this->artid = $part;
                     break;
                 }
             }
         }
-        $key = "www:" . $artId . ":" . rtrim(strtr(base64_encode(hash('sha256', $url, true)), '+/', '-_'), '=');
+
+        $key = "www:" . $this->artid . ":" . rtrim(strtr(base64_encode(hash('sha256', $url, true)), '+/', '-_'), '=');
 
         return $key;
     }
@@ -166,6 +228,7 @@ class WebcacheRedis
     private function urlString($request)
     {
         $uri = $request->getUri();
+
         return $uri->getScheme() . '://' . $uri->getHost() . ':' . $uri->getPort() . $uri->getPath() . '?' . $uri->getQuery();
     }
 
@@ -184,7 +247,7 @@ class WebcacheRedis
                 {
                     if ($mode == 0)
                     {
-                        $p   = $this->getPart($partId, $content);
+                        $p = $this->getPart($partId, $content);
                         $key = $this->cache_part_key($partId);
                         $this->redis->set($key, gzcompress($p, 9));
                     }
@@ -203,7 +266,7 @@ class WebcacheRedis
 
     private function replaceBetween($str, $stringStart, $stringEnd, $replacement)
     {
-        $pos   = strpos($str, $stringStart);
+        $pos = strpos($str, $stringStart);
         $start = $pos === false ? 0 : $pos + strlen($stringStart);
 
         $pos = strpos($str, $stringEnd, $start);
@@ -214,7 +277,7 @@ class WebcacheRedis
 
     private function getBetween($str, $stringStart, $stringEnd)
     {
-        $pos   = strpos($str, $stringStart);
+        $pos = strpos($str, $stringStart);
         $start = $pos === false ? 0 : $pos + strlen($stringStart);
 
         $pos = strpos($str, $stringEnd, $start);
@@ -236,7 +299,7 @@ class WebcacheRedis
                     $key = $this->cache_part_key($idKey);
                     if ($part = $this->redis->get($key))
                     {
-                        $n    = $this->boxMarkers($idKey, $mode);
+                        $n = $this->boxMarkers($idKey, $mode);
                         $html = $this->replaceBetween($html, $n[0], $n[1], gzuncompress($part));
                     }
                 }
