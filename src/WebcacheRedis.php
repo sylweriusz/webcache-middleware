@@ -177,7 +177,7 @@ class WebcacheRedis
                 if ($request->isGet() && !$request->isXhr())
                 {
                     //ctrl+F5 always refreshes cache
-                    if ($request->getHeaderLine('HTTP_CACHE_CONTROL') <> 'max-age=0')
+                    if ($request->getHeaderLine('Cache-Control') <> 'max-age=0')
                     {
                         $key = $this->cacheKey($request);
                         if ($body = $this->redis->get($key))
@@ -194,6 +194,10 @@ class WebcacheRedis
 
                             return $response;
                         }
+                    }
+                    else
+                    {
+                        header("X-From-Cache: refresh");
                     }
                 }
             }
@@ -220,9 +224,7 @@ class WebcacheRedis
             }
         }
 
-        $key = "www:" . $this->artid . ":" . rtrim(strtr(base64_encode(hash('sha256', $url, true)), '+/', '-_'), '=');
-
-        return $key;
+        return "www:" . $this->artid . ":" . hash('tiger192,3', $url);
     }
 
     private function urlString($request)
