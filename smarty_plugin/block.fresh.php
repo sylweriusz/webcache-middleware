@@ -16,7 +16,7 @@ function smarty_block_fresh($params, $text, Smarty_Internal_Template $template, 
     if (!$repeat)
     {
         $id   = strip_tags($params['id']);
-        $hash = rtrim(strtr(base64_encode(hash('sha1', $_SERVER['HTTPS'] . $_SERVER['HTTP_HOST'] . $id, true)), '+/', '-_'), '=');
+        $hash = hash('tiger192,3', $_SERVER['HTTPS'] . $_SERVER['HTTP_HOST'] . $id);
         $n    = \Slim\Middleware\WebcacheRedis::boxMarkers($hash, $params['readonly'] ? "1" : "0");
 
         return "\n<!-- $id -->\n" . $n[0] . "\n" . $text . "\n" . $n[1];
