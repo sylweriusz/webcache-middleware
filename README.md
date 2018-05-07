@@ -13,7 +13,7 @@ $ composer require sylweriusz/webcache-middleware
 
 Declare middleware
 ```php
-$app->add(new \Slim\Middleware\WebcacheRedis('tcp://192.168.1.12:6379/?database=2'));
+$app->add(new \Slim\Middleware\WebcacheRedis('192.168.1.12:6379'));
 ```
 
 Cache will try to detect ID of document, first numerical value in url parts. 
@@ -26,7 +26,7 @@ and if it fail to detect it will assume ID = 0
 
 if You want to delete all articles with this ID You should do something like this
 ```php
-$webcache = new \Slim\Middleware\WebcacheRedis('tcp://192.168.1.12:6379/?database=2');
+$webcache = new \Slim\Middleware\WebcacheRedis('192.168.1.12:6379');
 $webcache->delete(123456);
 ```
 
