@@ -11,7 +11,7 @@ class WebcacheRedis
     public static $boxname = '';
     public static $maxttl = 3600;
     public static $minttl = 60;
-    public $cluster = false;
+    public $redisArray = false;
     public $tryonce = false;
     public $artid = false;
 
@@ -28,21 +28,12 @@ class WebcacheRedis
         return $response;
     }
 
-    public function __construct($server = 'tcp://127.0.0.1:6379', $boxname = "BOX", $slimContainer = false)
+    public function __construct($server = '127.0.0.1:6379', $boxname = "BOX", $slimContainer = false)
     {
         self::$boxname = $boxname;
-        try
-        {
-            if (is_array($server))
-            {
-                $this->cluster = true;
-            }
-            $this->redis = new \Predis\Client($server);
-            $this->connected = true;
-        } catch (\Predis\CommunicationException $e)
-        {
-            $this->connected = false;
-        }
+
+        $this->server = $server;
+        $this->connect();
 
         if ($slimContainer)
         {
@@ -55,23 +46,28 @@ class WebcacheRedis
 
     }
 
+    private function connect()
+    {
+        if (\is_array($this->server) && \count($this->server))
+        {
+            $this->redis = new \RedisArray($this->server, ['lazy_connect' => true, 'connect_timeout' => 0.5, 'read_timeout' => 0.5]);
+            $this->connected = true;
+            $this->redisArray = true;
+        }
+        else
+        {
+            $this->redis = new \Redis();
+            $this->connected = $this->redis->connect($this->server, 6379, 0.5);
+        }
+        $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_NONE);
+        $this->redis->select(2);
+    }
+
     public function delete_all()
     {
         if ($this->connected)
         {
-
-            if ($this->cluster)
-            {
-                $cmd = $this->redis->createCommand('flushdb');
-                foreach ($this->redis->getConnection() as $nodeConnection)
-                {
-                    $nodeConnection->executeCommand($cmd);
-                }
-            }
-            else
-            {
-                $this->redis->flushdb();
-            }
+            $this->redis->flushdb();
         }
     }
 
@@ -79,25 +75,25 @@ class WebcacheRedis
     {
         if ($this->connected)
         {
-
-            if ($this->cluster)
+            $cacheKey = 'www:' . $artId . ':*';
+            if ($this->redisArray)
             {
-                $cmdKeys = $this->redis->createCommand('keys', ['www:' . $artId . ':*']);
-                foreach ($this->redis->getConnection() as $nodeConnection)
-                {
-                    $keys = $nodeConnection->executeCommand($cmdKeys);
-                    foreach ($keys as $key)
+                foreach ($this->redis->_hosts() as $host){
+                    $keys = $this->redis->_instance($host)->keys($cacheKey);
+                    if (\is_array($keys) && \count($keys))
                     {
-                        //expire after 10 seconds
-                        $this->redis->expire($key, 10);
+                        foreach ($keys as $key)
+                        {
+                            //expire after 10 seconds
+                            $this->redis->_instance($host)->expire($key, 10);
+                        }
                     }
                 }
             }
             else
             {
-                $cacheKey = 'www:' . $artId . ':*';
                 $keys = $this->redis->keys($cacheKey);
-                if (is_array($keys) && count($keys))
+                if (\is_array($keys) && \count($keys))
                 {
                     foreach ($keys as $key)
                     {
@@ -332,3 +328,4 @@ class WebcacheRedis
         return $cacheIds;
     }
 }
+
