@@ -14,6 +14,7 @@ class WebcacheRedis
     public $redisArray = false;
     public $tryonce = false;
     public $artid = false;
+    public $ver = 3;
 
     public function __invoke($request, $response, $next)
     {
