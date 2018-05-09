@@ -67,6 +67,7 @@ class WebcacheRedis
             $this->connected = $this->redis->connect($this->server, 6379, 1, null, 100);
         }
         $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_NONE);
+        $this->cache->select(2);
     }
 
     public function delete_all()
@@ -155,7 +156,7 @@ class WebcacheRedis
                             if (($data['time']+self::$maxttl)<time())
                             {
                                 $this->redis->hDel("www:" . $this->artid, $key);
-                                header("X-From-Cache: to old");
+                                header("X-From-Cache: too old");
                                 return false;
                             }
 
