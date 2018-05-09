@@ -67,7 +67,7 @@ class WebcacheRedis
             $this->connected = $this->redis->connect($this->server, 6379, 1, null, 100);
         }
         $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_NONE);
-        $this->cache->select(2);
+        $this->redis->select(2);
     }
 
     public function delete_all()
