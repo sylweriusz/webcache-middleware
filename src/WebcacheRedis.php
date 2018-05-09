@@ -51,17 +51,22 @@ class WebcacheRedis
     {
         if (\is_array($this->server) && \count($this->server))
         {
-            $this->redis = new \RedisArray($this->server, ['lazy_connect' => true, 'connect_timeout' => 0.5, 'read_timeout' => 0.5]);
+            $this->redis = new \RedisArray($this->server, [
+                'lazy_connect'    => true,
+                'retry_timeout'   => 100,
+                'read_timeout'    => 1,
+                'connect_timeout' => 1,
+            ]);
+
             $this->connected = true;
             $this->redisArray = true;
         }
         else
         {
             $this->redis = new \Redis();
-            $this->connected = $this->redis->connect($this->server, 6379, 0.5);
+            $this->connected = $this->redis->connect($this->server, 6379, 1, null, 100);
         }
         $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_NONE);
-        $this->redis->select(2);
     }
 
     public function delete_all()
@@ -76,33 +81,7 @@ class WebcacheRedis
     {
         if ($this->connected)
         {
-            $cacheKey = 'www:' . $artId . ':*';
-            if ($this->redisArray)
-            {
-                foreach ($this->redis->_hosts() as $host){
-                    $keys = $this->redis->_instance($host)->keys($cacheKey);
-                    if (\is_array($keys) && \count($keys))
-                    {
-                        foreach ($keys as $key)
-                        {
-                            //expire after 10 seconds
-                            $this->redis->_instance($host)->expire($key, 10);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                $keys = $this->redis->keys($cacheKey);
-                if (\is_array($keys) && \count($keys))
-                {
-                    foreach ($keys as $key)
-                    {
-                        //expire after 10 seconds
-                        $this->redis->expire($key, 10);
-                    }
-                }
-            }
+            $this->redis->expire("www:" . $artId, 5);
         }
     }
 
@@ -136,22 +115,14 @@ class WebcacheRedis
                 $this->saveParts($parts, $content);
             }
             $key = $this->cacheKey($request);
+
             $compressed = gzcompress(json_encode([
                 'page' => $this->urlString($request),
                 'time' => time(),
                 'html' => $content,
             ]), 9);
 
-            if ($this->artid == 0 && self::$maxttl > 600)
-            {
-                $ttl = 120;
-            }
-            else
-            {
-                $ttl = self::$maxttl;
-            }
-
-            $this->redis->setex($key, $ttl, $compressed);
+            $this->redis->hSet("www:" . $this->artid, $key, $compressed);
         }
 
         $content = $this->insertParts($content, 0);
@@ -177,9 +148,17 @@ class WebcacheRedis
                     if ($request->getHeaderLine('Cache-Control') <> 'max-age=0')
                     {
                         $key = $this->cacheKey($request);
-                        if ($body = $this->redis->get($key))
+                        if ($body = $this->redis->hGet("www:" . $this->artid, $key))
                         {
                             $data = json_decode(gzuncompress($body), true);
+
+                            if (($data['time']+self::$maxttl)<time())
+                            {
+                                $this->redis->hDel("www:" . $this->artid, $key);
+                                header("X-From-Cache: to old");
+                                return false;
+                            }
+
                             $html = $data['html'];
 
                             header("X-From-Cache: " . gmdate("D, d M Y H:i:s", $data['time']) . " GMT");
@@ -221,7 +200,7 @@ class WebcacheRedis
             }
         }
 
-        return "www:" . $this->artid . ":" . hash('tiger192,3', $url);
+        return hash('tiger192,3', $url);
     }
 
     private function urlString($request)
@@ -329,4 +308,3 @@ class WebcacheRedis
         return $cacheIds;
     }
 }
-
