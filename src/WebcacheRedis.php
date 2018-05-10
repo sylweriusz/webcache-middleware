@@ -124,6 +124,7 @@ class WebcacheRedis
             ]), 9);
 
             $this->redis->hSet("www:" . $this->artid, $key, $compressed);
+            $this->redis->expire("www:" . $this->artid, self::$maxttl);
         }
 
         $content = $this->insertParts($content, 0);
