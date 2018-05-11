@@ -141,7 +141,7 @@ class WebcacheRedis
             ]), 9);
 
             if ($this->artid===0){
-                $partition = ':' . substr(md5($key,0,1));
+                $partition = ':' . substr(md5($key),0,1);
             }
 
             $this->redis->hSet("www:" . $this->artid . $partition, $key, $compressed);
@@ -171,7 +171,7 @@ class WebcacheRedis
                     {
                         $key = $this->cacheKey($request);
                         if ($this->artid===0){
-                            $partition = ':' . substr(md5($key,0,1));
+                            $partition = ':' . substr(md5($key),0,1);
                         }
                         if ($body = $this->redis->hGet("www:" . $this->artid . $partition, $key))
                         {
