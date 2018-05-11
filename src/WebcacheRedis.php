@@ -82,22 +82,8 @@ class WebcacheRedis
         if ($this->connected)
         {
             if ($artId === 0){
-                $this->redis->del("www:" . $artId .':0');
-                $this->redis->del("www:" . $artId .':1');
-                $this->redis->del("www:" . $artId .':2');
-                $this->redis->del("www:" . $artId .':3');
-                $this->redis->del("www:" . $artId .':4');
-                $this->redis->del("www:" . $artId .':5');
-                $this->redis->del("www:" . $artId .':6');
-                $this->redis->del("www:" . $artId .':7');
-                $this->redis->del("www:" . $artId .':8');
-                $this->redis->del("www:" . $artId .':9');
-                $this->redis->del("www:" . $artId .':a');
-                $this->redis->del("www:" . $artId .':b');
-                $this->redis->del("www:" . $artId .':c');
-                $this->redis->del("www:" . $artId .':d');
-                $this->redis->del("www:" . $artId .':e');
-                $this->redis->del("www:" . $artId .':f');
+                $this->redis->del('www:0:0', 'www:0:1', 'www:0:2', 'www:0:3', 'www:0:4', 'www:0:5', 'www:0:6', 'www:0:7', 
+                    'www:0:8', 'www:0:9', 'www:0:a', 'www:0:b', 'www:0:c', 'www:0:d', 'www:0:e', 'www:0:f');
             }
             $this->redis->del("www:" . $artId);
         }
