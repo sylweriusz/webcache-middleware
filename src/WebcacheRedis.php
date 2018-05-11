@@ -67,7 +67,6 @@ class WebcacheRedis
             $this->connected = $this->redis->connect($this->server, 6379, 1, null, 100);
         }
         $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_NONE);
-        $this->redis->select(2);
     }
 
     public function delete_all()
@@ -82,6 +81,24 @@ class WebcacheRedis
     {
         if ($this->connected)
         {
+            if ($artId === 0){
+                $this->redis->expire("www:" . $artId .':0', 5);
+                $this->redis->expire("www:" . $artId .':1', 5);
+                $this->redis->expire("www:" . $artId .':2', 5);
+                $this->redis->expire("www:" . $artId .':3', 5);
+                $this->redis->expire("www:" . $artId .':4', 5);
+                $this->redis->expire("www:" . $artId .':5', 5);
+                $this->redis->expire("www:" . $artId .':6', 5);
+                $this->redis->expire("www:" . $artId .':7', 5);
+                $this->redis->expire("www:" . $artId .':8', 5);
+                $this->redis->expire("www:" . $artId .':9', 5);
+                $this->redis->expire("www:" . $artId .':a', 5);
+                $this->redis->expire("www:" . $artId .':b', 5);
+                $this->redis->expire("www:" . $artId .':c', 5);
+                $this->redis->expire("www:" . $artId .':d', 5);
+                $this->redis->expire("www:" . $artId .':e', 5);
+                $this->redis->expire("www:" . $artId .':f', 5);
+            }
             $this->redis->expire("www:" . $artId, 5);
         }
     }
@@ -123,8 +140,11 @@ class WebcacheRedis
                 'html' => $content,
             ]), 9);
 
-            $this->redis->hSet("www:" . $this->artid, $key, $compressed);
-            $this->redis->expire("www:" . $this->artid, self::$maxttl);
+            if ($this->artid===0){
+                $partition = ':' . substr(md5($key,0,1));
+            }
+
+            $this->redis->hSet("www:" . $this->artid . $partition, $key, $compressed);
         }
 
         $content = $this->insertParts($content, 0);
@@ -150,14 +170,17 @@ class WebcacheRedis
                     if ($request->getHeaderLine('Cache-Control') <> 'max-age=0')
                     {
                         $key = $this->cacheKey($request);
-                        if ($body = $this->redis->hGet("www:" . $this->artid, $key))
+                        if ($this->artid===0){
+                            $partition = ':' . substr(md5($key,0,1));
+                        }
+                        if ($body = $this->redis->hGet("www:" . $this->artid . $partition, $key))
                         {
                             $data = json_decode(gzuncompress($body), true);
 
                             if (($data['time']+self::$maxttl)<time())
                             {
-                                $this->redis->hDel("www:" . $this->artid, $key);
-                                header("X-From-Cache: too old");
+                                $this->redis->hDel("www:" . $this->artid . $partition, $key);
+                                header("X-From-Cache: to old");
                                 return false;
                             }
 
