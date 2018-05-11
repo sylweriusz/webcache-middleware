@@ -82,24 +82,24 @@ class WebcacheRedis
         if ($this->connected)
         {
             if ($artId === 0){
-                $this->redis->expire("www:" . $artId .':0', 5);
-                $this->redis->expire("www:" . $artId .':1', 5);
-                $this->redis->expire("www:" . $artId .':2', 5);
-                $this->redis->expire("www:" . $artId .':3', 5);
-                $this->redis->expire("www:" . $artId .':4', 5);
-                $this->redis->expire("www:" . $artId .':5', 5);
-                $this->redis->expire("www:" . $artId .':6', 5);
-                $this->redis->expire("www:" . $artId .':7', 5);
-                $this->redis->expire("www:" . $artId .':8', 5);
-                $this->redis->expire("www:" . $artId .':9', 5);
-                $this->redis->expire("www:" . $artId .':a', 5);
-                $this->redis->expire("www:" . $artId .':b', 5);
-                $this->redis->expire("www:" . $artId .':c', 5);
-                $this->redis->expire("www:" . $artId .':d', 5);
-                $this->redis->expire("www:" . $artId .':e', 5);
-                $this->redis->expire("www:" . $artId .':f', 5);
+                $this->redis->del("www:" . $artId .':0');
+                $this->redis->del("www:" . $artId .':1');
+                $this->redis->del("www:" . $artId .':2');
+                $this->redis->del("www:" . $artId .':3');
+                $this->redis->del("www:" . $artId .':4');
+                $this->redis->del("www:" . $artId .':5');
+                $this->redis->del("www:" . $artId .':6');
+                $this->redis->del("www:" . $artId .':7');
+                $this->redis->del("www:" . $artId .':8');
+                $this->redis->del("www:" . $artId .':9');
+                $this->redis->del("www:" . $artId .':a');
+                $this->redis->del("www:" . $artId .':b');
+                $this->redis->del("www:" . $artId .':c');
+                $this->redis->del("www:" . $artId .':d');
+                $this->redis->del("www:" . $artId .':e');
+                $this->redis->del("www:" . $artId .':f');
             }
-            $this->redis->expire("www:" . $artId, 5);
+            $this->redis->del("www:" . $artId);
         }
     }
 
