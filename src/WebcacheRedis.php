@@ -9,8 +9,7 @@ class WebcacheRedis
     public $redis = false;
     public $connected = false;
     public static $boxname = '';
-    public static $maxttl = 3600;
-    public static $minttl = 60;
+    public static $maxttl = 120;
     public $redisArray = false;
     public $tryonce = false;
     public $artid = false;
@@ -81,17 +80,16 @@ class WebcacheRedis
         if ($this->connected)
         {
             if ($artId === 0){
-                $this->redis->del('www:0:0', 'www:0:1', 'www:0:2', 'www:0:3', 'www:0:4', 'www:0:5', 'www:0:6', 'www:0:7', 
-                    'www:0:8', 'www:0:9', 'www:0:a', 'www:0:b', 'www:0:c', 'www:0:d', 'www:0:e', 'www:0:f');
+                $this->redis->del('www:0:0', 'www:0:1', 'www:0:2', 'www:0:3', 'www:0:4', 'www:0:5', 'www:0:6', 'www:0:7',
+                                  'www:0:8', 'www:0:9', 'www:0:a', 'www:0:b', 'www:0:c', 'www:0:d', 'www:0:e', 'www:0:f');
             }
             $this->redis->del("www:" . $artId);
         }
     }
 
-    public static function setTtl($maxttl, $minttl = 60)
+    public static function setTtl($maxttl)
     {
         self::$maxttl = $maxttl;
-        self::$minttl = $minttl;
     }
 
     public static function boxMarkers($boxId, $readOnly = 0)
@@ -120,10 +118,10 @@ class WebcacheRedis
             $key = $this->cacheKey($request);
 
             $compressed = gzcompress(json_encode([
-                'page' => $this->urlString($request),
-                'time' => time(),
-                'html' => $content,
-            ]), 9);
+                                                     'page' => $this->urlString($request),
+                                                     'time' => time(),
+                                                     'html' => $content,
+                                                 ]), 9);
 
             if ($this->artid===0){
                 $partition = ':' . substr(md5($key),0,1);
@@ -131,7 +129,7 @@ class WebcacheRedis
 
             $this->redis->hSet("www:" . $this->artid . $partition, $key, $compressed);
             $this->redis->expire("www:" . $this->artid . $partition, self::$maxttl);
-            header("X-Save-To-RI: " . gmdate("D, d M Y H:i:s", $data['time']) . " GMT");
+            header("X-Save-To-RI: " . gmdate("D, d M Y H:i:s", time()) . " GMT");
             header("cache-control: max-age=360, public, stale-while-revalidate=7200, stale-if-error=14400");
         }
 
