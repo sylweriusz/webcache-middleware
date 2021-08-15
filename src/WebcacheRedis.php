@@ -50,20 +50,26 @@ class WebcacheRedis
     {
         if (\is_array($this->server) && \count($this->server))
         {
-            $this->redis = new \RedisArray($this->server, [
-                'lazy_connect'    => true,
-                'retry_timeout'   => 100,
-                'read_timeout'    => 1,
-                'connect_timeout' => 1,
-            ]);
-
-            $this->connected = true;
-            $this->redisArray = true;
+            try {
+                $this->redis = new \RedisArray($this->server, [
+                    'lazy_connect'    => true,
+                    'retry_timeout'   => 100,
+                    'read_timeout'    => 1,
+                    'connect_timeout' => 1,
+                ]);
+                $this->connected = $this->redis->ping();
+            }catch (\Exception $e) {
+                $this->connected = false;
+            }
         }
         else
         {
+            try {
             $this->redis = new \Redis();
             $this->connected = $this->redis->connect($this->server, 6379, 1, null, 100);
+            }catch (\Exception $e) {
+                $this->connected = false;
+            }
         }
     }
 
@@ -126,9 +132,10 @@ class WebcacheRedis
             if ($this->artid===0){
                 $partition = ':' . substr(md5($key),0,1);
             }
-
-            $this->redis->hSet("www:" . $this->artid . $partition, $key, $compressed);
-            $this->redis->expire("www:" . $this->artid . $partition, self::$maxttl);
+            if ($this->connected) {
+                $this->redis->hSet("www:" . $this->artid . $partition, $key, $compressed);
+                $this->redis->expire("www:" . $this->artid . $partition, self::$maxttl);
+            }
             header("X-Save-To-RI: " . gmdate("D, d M Y H:i:s", time()) . " GMT");
             header("cache-control: max-age=360, public, stale-while-revalidate=7200, stale-if-error=14400");
         }
@@ -238,8 +245,10 @@ class WebcacheRedis
                     if ($mode == 0)
                     {
                         $p = $this->getPart($partId, $content);
-                        $key = $this->cache_part_key($partId);
-                        $this->redis->set($key, gzcompress($p, 9));
+                        if ($this->connected) {
+                            $key = $this->cache_part_key($partId);
+                            $this->redis->set($key, gzcompress($p, 9));
+                        }
                     }
                 }
             }
