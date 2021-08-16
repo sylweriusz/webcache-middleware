@@ -7,7 +7,7 @@ class WebcacheRedis
 {
 
     public $redis = false;
-    public $connected = false;
+    public $connected = null;
     public static $boxname = '';
     public static $maxttl = 120;
     public $redisArray = false;
@@ -48,27 +48,26 @@ class WebcacheRedis
 
     private function connect()
     {
-        if (\is_array($this->server) && \count($this->server))
-        {
-            try {
-                $this->redis = new \RedisArray($this->server, [
-                    'lazy_connect'    => true,
-                    'retry_timeout'   => 100,
-                    'read_timeout'    => 1,
-                    'connect_timeout' => 1,
-                ]);
-                $this->connected = $this->redis->ping();
-            }catch (\Exception $e) {
-                $this->connected = false;
-            }
-        }
-        else
-        {
-            try {
-            $this->redis = new \Redis();
-            $this->connected = $this->redis->connect($this->server, 6379, 1, null, 100);
-            }catch (\Exception $e) {
-                $this->connected = false;
+        if (is_null($this->connected)) {
+            if (\is_array($this->server) && \count($this->server)) {
+                try {
+                    $this->redis     = new \RedisArray($this->server, [
+                        'lazy_connect'    => true,
+                        'retry_timeout'   => 100,
+                        'read_timeout'    => 1,
+                        'connect_timeout' => 1,
+                    ]);
+                    $this->connected = $this->redis->ping();
+                } catch (\Exception $e) {
+                    $this->connected = false;
+                }
+            } else {
+                try {
+                    $this->redis     = new \Redis();
+                    $this->connected = $this->redis->connect($this->server, 6379, 1, null, 100);
+                } catch (\Exception $e) {
+                    $this->connected = false;
+                }
             }
         }
     }
