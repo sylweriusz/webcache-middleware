@@ -57,17 +57,17 @@ class WebcacheRedis
                     'connect_timeout' => 1,
                 ]);
                 $this->connected = $this->redis->ping();
-            } catch (\Exception $e) {
+            } catch (\RedisArrayException $e) {
                 $this->connected = false;
-                error_log('WebCache ERROR: '.$e->getMessage());
+                file_put_contents('php://stderr','WebCache ERROR: '.$e->getMessage());
             }
         } else {
             try {
                 $this->redis     = new \Redis();
                 $this->connected = $this->redis->connect($this->server, 6379, 1, null, 100);
-            } catch (\Exception $e) {
+            } catch (\RedisException $e) {
                 $this->connected = false;
-                error_log('WebCache ERROR: '.$e->getMessage());
+                file_put_contents('php://stderr','WebCache ERROR: '.$e->getMessage());
             }
         }
     }
