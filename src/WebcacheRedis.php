@@ -136,7 +136,7 @@ class WebcacheRedis
                 $this->redis->expire("www:" . $this->artid . $partition, self::$maxttl);
             }
             header("X-Save-To-RI: " . gmdate("D, d M Y H:i:s", time()) . " GMT");
-            header("cache-control: max-age=300, must-revalidate");
+            header("cache-control: max-age=120, must-revalidate");
         }
 
         $content = $this->insertParts($content, 0);
@@ -179,7 +179,7 @@ class WebcacheRedis
                             $html = $data['html'];
 
                             header("X-From-RI: " . gmdate("D, d M Y H:i:s", $data['time']) . " GMT");
-                            header("cache-control: max-age=300, must-revalidate");
+                            header("cache-control: max-age=120, must-revalidate");
 
                             $html = $this->insertParts($html, 0);
                             $html = $this->insertParts($html, 1);
