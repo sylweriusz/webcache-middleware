@@ -137,7 +137,7 @@ class WebcacheRedis
             }
             header("X-Save-To-RI: " . gmdate("D, d M Y H:i:s", time()) . " GMT");
             header("Cache-Control: max-age=120, must-revalidate");
-            header("Cloudflare-CDN-Cache-Control: max-age=60, stale-if-error=600");
+            header("Cloudflare-CDN-Cache-Control: public, max-age=120, stale-if-error=600");
         }
 
         $content = $this->insertParts($content, 0);
@@ -181,7 +181,7 @@ class WebcacheRedis
 
                             header("X-From-RI: " . gmdate("D, d M Y H:i:s", $data['time']) . " GMT");
                             header("Cache-Control: max-age=120, must-revalidate");
-                            header("Cloudflare-CDN-Cache-Control: max-age=60, stale-if-error=600");
+                            header("Cloudflare-CDN-Cache-Control: public, max-age=120, stale-if-error=600");
 
                             $html = $this->insertParts($html, 0);
                             $html = $this->insertParts($html, 1);
