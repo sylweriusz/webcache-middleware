@@ -53,8 +53,8 @@ class WebcacheRedis
                 $this->redis     = new \RedisArray($this->server, [
                     'lazy_connect'    => false,
                     'retry_timeout'   => 100,
-                    'read_timeout'    => 1,
-                    'connect_timeout' => 1,
+                    'read_timeout'    => 5,
+                    'connect_timeout' => 5,
                 ]);
                 $this->connected = $this->redis->ping();
             } catch (\RedisArrayException $e) {
